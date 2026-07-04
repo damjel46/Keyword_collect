@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>미리캔버스 태그 생성기</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  max-width: 720px;
+  margin: 0 auto;
+  font-family: "Pretendard", -apple-system, "Segoe UI", sans-serif;
+  padding: 20px 16px;
+  color: #2b2418;
+  background: #fbf7f0;
+}
+header { margin-bottom: 18px; }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 800; letter-spacing: -0.02em; color: #21352f; }
+.sub { font-size: 13px; color: #8a7f6c; margin: 0; }
+
+.add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.add-form input[type="text"] {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #e4dcc9;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+}
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #e4dcc9;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #5b5342;
+}
+.file-label input[type="file"] { display: none; }
+
+.image-preview[hidden] { display: none; }
+.image-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #5b5342;
+}
+.image-preview img { width: 48px; height: 48px; object-fit: contain; border-radius: 10px; border: 1px solid #e4dcc9; background: #fff; }
+
+.toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+button {
+  border: 1px solid #e4dcc9;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #4a4334;
+}
+button.primary { background: #1f7a63; color: #fff; border-color: #1f7a63; font-weight: 600; }
+
+.status-banner {
+  background: #fdf1e2;
+  border: 1px solid #f0d9ad;
+  color: #a8611a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.stats-strip {
+  display: flex;
+  background: #fff;
+  border: 1px solid #ece4d3;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.stats-strip .stat-cell {
+  flex: 1;
+  padding: 10px 8px;
+  text-align: center;
+  border-left: 1px solid #ece4d3;
+}
+.stats-strip .stat-cell:first-child { border-left: none; }
+.stat-label { font-size: 10px; color: #9a8f78; }
+.stat-value { font-size: 17px; font-weight: 800; margin-top: 2px; color: #21352f; }
+
+.results-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+@media (min-width: 480px) {
+  .results-list { grid-template-columns: repeat(2, 1fr); }
+}
+.result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #ece4d3;
+  border-radius: 14px;
+  padding: 12px;
+}
+.result-card .thumb-row { display: flex; justify-content: center; }
+.result-card img { width: 64px; height: 64px; object-fit: contain; border-radius: 10px; background: #f5f0e5; }
+.result-card .no-img { width: 64px; height: 64px; border-radius: 10px; background: #f5f0e5; }
+.result-body { min-width: 0; }
+.result-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; color: #21352f; }
+.result-name .remove { font-size: 12px; color: #c05a3d; cursor: pointer; font-weight: 400; }
+.result-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.tag-chip {
+  display: inline-block;
+  background: #e6f2ec;
+  color: #1f7a63;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.tag-chip.selected { border-color: #1f7a63; background: #c8e7da; }
+
+.selected-panel {
+  background: #fff;
+  border: 1px solid #ece4d3;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.selected-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; flex-wrap: wrap; gap: 8px; color: #21352f; font-weight: 700; }
+.selected-list { font-size: 13px; color: #5b5342; min-height: 20px; word-break: break-word; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>미리캔버스 태그 생성기</h1>
+    <p class="sub">요소 이름이나 사진을 넣으면 어울리는 태그를 만들어드려요. 인터넷 없이 이 화면 안에서만 처리돼요.</p>
+  </header>
+
+  <section class="add-form">
+    <input type="text" id="nameInput" placeholder="요소 이름 (예: 과학, 비커)" />
+    <label class="file-label">
+      이미지 첨부
+      <input type="file" id="imageInput" accept="image/*" />
+    </label>
+    <button id="addBtn" class="primary">태그 생성</button>
+  </section>
+  <div id="imagePreview" class="image-preview" hidden>
+    <img id="previewImg" alt="첨부한 이미지 미리보기" />
+    <span id="previewName"></span>
+  </div>
+
+  <div class="toolbar">
+    <button id="exportCsv">CSV로 내보내기</button>
+    <button id="exportJson">JSON으로 내보내기</button>
+    <button id="clearAll">전체 삭제</button>
+  </div>
+
+  <div id="statusBanner" class="status-banner" hidden></div>
+
+  <div class="stats-strip">
+    <div class="stat-cell">
+      <div class="stat-label">전체 항목</div>
+      <div class="stat-value" id="statTotal">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">태그 생성됨</div>
+      <div class="stat-value" id="statWithTags">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">매칭 실패</div>
+      <div class="stat-value" id="statMissing">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">평균 신뢰도</div>
+      <div class="stat-value" id="statAvgConfidence">0</div>
+    </div>
+  </div>
+
+  <div id="resultsList" class="results-list"></div>
+
+  <div class="selected-panel">
+    <div class="selected-header">
+      <span>담아둔 태그</span>
+      <div>
+        <button id="copySelected" class="primary">복사하기</button>
+        <button id="clearSelected">선택 해제</button>
+      </div>
+    </div>
+    <div id="selectedList" class="selected-list">아래 태그를 눌러서 담으면 여기에 콤마로 구분되어 표시돼요.</div>
+  </div>
+
+  <script>
+// ===== keywords.js =====
+// 카테고리 -> 추천 키워드 사전. 블로그/자료 조사로 계속 채워나가는 데이터.
+// 새 카테고리를 추가할 때는 CATEGORY_KEYWORDS에 항목을 추가하고,
+// 요소 이름이 다르게 표기되는 경우(동의어)는 SYNONYMS에 등록한다.
+const CATEGORY_KEYWORDS = {
+  "바다": [
+    "바다", "바다일러스트", "바다 클립아트", "바다 손그림", "심플한바다", "바다해양",
+    "겨울 바다", "여름 바다", "바다 배경", "겨울바다", "바다이미지", "바다손그림", "바다그림",
+    "여름바다", "바다svg", "해양 바다", "바다배경", "단순한바다", "바다아이콘", "푸른바다"
+  ],
+  "불가사리": ["여름", "바닷가", "바다", "바다동물", "바다생물", "귀여운"],
+  "꽃게": ["여름", "바닷가", "바다", "바다동물", "바다생물", "귀여운"],
+
+  // 동물
+  "강아지": ["강아지", "강아지일러스트", "강아지 클립아트", "귀여운 강아지", "강아지svg", "강아지아이콘", "반려동물", "동물"],
+  "고양이": ["고양이", "고양이일러스트", "고양이 클립아트", "귀여운 고양이", "고양이svg", "고양이아이콘", "반려동물", "동물"],
+  "토끼": ["토끼", "토끼일러스트", "귀여운 토끼", "토끼svg", "토끼아이콘", "동물", "봄 동물"],
+  "곰": ["곰", "곰돌이", "곰 일러스트", "귀여운 곰", "곰svg", "곰아이콘", "동물"],
+  "사자": ["사자", "사자일러스트", "동물의왕", "사자svg", "사자아이콘", "동물", "정글동물"],
+  "호랑이": ["호랑이", "호랑이일러스트", "호랑이svg", "호랑이아이콘", "동물", "정글동물"],
+  "코끼리": ["코끼리", "코끼리일러스트", "귀여운 코끼리", "코끼리svg", "코끼리아이콘", "동물", "정글동물"],
+  "판다": ["판다", "판다일러스트", "귀여운 판다", "판다svg", "판다아이콘", "동물"],
+  "펭귄": ["펭귄", "펭귄일러스트", "귀여운 펭귄", "펭귄svg", "펭귄아이콘", "겨울동물", "남극동물"],
+  "부엉이": ["부엉이", "부엉이일러스트", "부엉이svg", "부엉이아이콘", "야행성동물", "숲속동물"],
+  "물고기": ["물고기", "물고기일러스트", "물고기 클립아트", "물고기svg", "물고기아이콘", "바다동물", "귀여운 물고기"],
+
+  // 계절/날씨
+  "봄": ["봄", "봄일러스트", "봄 배경", "봄느낌", "벚꽃", "봄꽃", "봄svg", "봄아이콘", "따뜻한봄"],
+  "여름": ["여름", "여름일러스트", "여름 배경", "여름느낌", "여름휴가", "시원한여름", "여름svg", "여름아이콘"],
+  "가을": ["가을", "가을일러스트", "가을 배경", "가을느낌", "단풍", "낙엽", "가을svg", "가을아이콘"],
+  "겨울": ["겨울", "겨울일러스트", "겨울 배경", "겨울느낌", "눈", "눈사람", "겨울svg", "겨울아이콘", "크리스마스"],
+  "눈사람": ["눈사람", "눈사람일러스트", "겨울", "귀여운 눈사람", "눈사람svg", "눈사람아이콘", "크리스마스"],
+  "우산": ["우산", "우산일러스트", "장마", "비", "우산svg", "우산아이콘", "장마철"],
+  "무지개": ["무지개", "무지개일러스트", "무지개 클립아트", "비온뒤", "무지개svg", "무지개아이콘"],
+
+  // 식물
+  "나무": ["나무", "나무일러스트", "나무 클립아트", "심플한나무", "나무svg", "나무아이콘", "숲"],
+  "꽃": ["꽃", "꽃일러스트", "꽃 클립아트", "꽃다발", "꽃svg", "꽃아이콘", "봄꽃", "예쁜꽃"],
+  "선인장": ["선인장", "선인장일러스트", "선인장 클립아트", "선인장svg", "선인장아이콘", "다육식물"],
+
+  // 음식
+  "커피": ["커피", "커피컵", "커피일러스트", "커피 클립아트", "아메리카노", "커피svg", "커피아이콘", "카페"],
+  "케이크": ["케이크", "케이크일러스트", "생일케이크", "케이크 클립아트", "케이크svg", "케이크아이콘", "디저트"],
+  "아이스크림": ["아이스크림", "아이스크림일러스트", "여름디저트", "아이스크림svg", "아이스크림아이콘", "디저트"],
+  "과일": ["과일", "과일일러스트", "과일 클립아트", "과일svg", "과일아이콘", "신선한과일"],
+  "피자": ["피자", "피자일러스트", "피자 클립아트", "피자svg", "피자아이콘", "음식"],
+
+  // 사물/기념일
+  "하트": ["하트", "하트일러스트", "사랑", "하트 클립아트", "하트svg", "하트아이콘", "발렌타인"],
+  "별": ["별", "별일러스트", "별 클립아트", "반짝이는별", "별svg", "별아이콘", "밤하늘"],
+  "선물": ["선물", "선물상자", "선물일러스트", "선물 클립아트", "선물svg", "선물아이콘", "생일선물"],
+  "풍선": ["풍선", "풍선일러스트", "생일풍선", "풍선 클립아트", "풍선svg", "풍선아이콘", "파티"],
+  "크리스마스트리": ["크리스마스트리", "트리", "크리스마스", "겨울", "트리일러스트", "트리svg", "트리아이콘"],
+  "산타클로스": ["산타클로스", "산타", "크리스마스", "겨울", "산타일러스트", "산타svg", "산타아이콘"],
+
+  // 사람 캐릭터
+  "남자": ["남자", "남자 캐릭터", "남자 일러스트", "남자사람", "심플한 남자", "남자svg", "남자아이콘", "사람"],
+  "여자": ["여자", "여자 캐릭터", "여자 일러스트", "여자사람", "심플한 여자", "여자svg", "여자아이콘", "사람"],
+  "아이": ["아이", "어린이", "아이 캐릭터", "귀여운 아이", "아이 일러스트", "아이svg", "아이아이콘", "키즈"],
+  "학생": ["학생", "학생 캐릭터", "학생 일러스트", "교복", "학생svg", "학생아이콘", "학교"],
+  "직장인": ["직장인", "회사원", "직장인 캐릭터", "직장인 일러스트", "오피스룩", "직장인svg", "직장인아이콘", "비즈니스"],
+  "의사": ["의사", "의사 캐릭터", "의사 일러스트", "간호사", "의료진", "의사svg", "의사아이콘", "병원"],
+  "선생님": ["선생님", "교사", "선생님 캐릭터", "선생님 일러스트", "선생님svg", "선생님아이콘", "학교"],
+  "커플": ["커플", "연인", "커플 캐릭터", "커플 일러스트", "커플svg", "커플아이콘", "사랑"],
+  "가족": ["가족", "가족 캐릭터", "가족 일러스트", "행복한가족", "가족svg", "가족아이콘"],
+  "할머니": ["할머니", "할아버지", "노인", "할머니 캐릭터", "할머니 일러스트", "할머니svg", "할머니아이콘", "어르신"],
+
+  // 교통수단
+  "자동차": ["자동차", "자동차 일러스트", "자동차 클립아트", "차", "귀여운 자동차", "자동차svg", "자동차아이콘", "교통수단"],
+  "버스": ["버스", "버스 일러스트", "버스 클립아트", "버스svg", "버스아이콘", "대중교통", "교통수단"],
+  "기차": ["기차", "기차 일러스트", "기차 클립아트", "열차", "기차svg", "기차아이콘", "교통수단"],
+  "지하철": ["지하철", "지하철 일러스트", "전철", "지하철svg", "지하철아이콘", "대중교통", "교통수단"],
+  "비행기": ["비행기", "비행기 일러스트", "비행기 클립아트", "여행", "비행기svg", "비행기아이콘", "교통수단"],
+  "배": ["배", "선박", "배 일러스트", "요트", "배svg", "배아이콘", "교통수단", "바다"],
+  "자전거": ["자전거", "자전거 일러스트", "자전거 클립아트", "자전거svg", "자전거아이콘", "교통수단"],
+  "오토바이": ["오토바이", "오토바이 일러스트", "스쿠터", "오토바이svg", "오토바이아이콘", "교통수단"],
+  "로켓": ["로켓", "로켓 일러스트", "우주선", "로켓svg", "로켓아이콘", "우주", "교통수단"],
+
+  // 사물/생활용품/문구/전자기기
+  "책": ["책", "책일러스트", "책 클립아트", "귀여운 책", "책svg", "책아이콘", "독서", "문구"],
+  "안경": ["안경", "안경일러스트", "안경 클립아트", "귀여운 안경", "안경svg", "안경아이콘", "패션소품"],
+  "시계": ["시계", "시계일러스트", "시계 클립아트", "귀여운 시계", "시계svg", "시계아이콘", "손목시계", "생활용품"],
+  "카메라": ["카메라", "카메라일러스트", "카메라 클립아트", "귀여운 카메라", "카메라svg", "카메라아이콘", "전자기기"],
+  "헤드폰": ["헤드폰", "헤드폰일러스트", "헤드폰 클립아트", "귀여운 헤드폰", "헤드폰svg", "헤드폰아이콘", "이어폰", "전자기기"],
+  "노트북": ["노트북", "노트북일러스트", "노트북 클립아트", "귀여운 노트북", "노트북svg", "노트북아이콘", "랩탑", "전자기기"],
+  "스마트폰": ["스마트폰", "스마트폰일러스트", "스마트폰 클립아트", "귀여운 스마트폰", "스마트폰svg", "스마트폰아이콘", "핸드폰", "전자기기"],
+  "가방": ["가방", "가방일러스트", "가방 클립아트", "귀여운 가방", "가방svg", "가방아이콘", "백팩", "생활용품"],
+  "우체통": ["우체통", "우체통일러스트", "우체통 클립아트", "귀여운 우체통", "우체통svg", "우체통아이콘", "생활용품"],
+  "연필": ["연필", "연필일러스트", "연필 클립아트", "귀여운 연필", "연필svg", "연필아이콘", "필기구", "문구"],
+  "가위": ["가위", "가위일러스트", "가위 클립아트", "귀여운 가위", "가위svg", "가위아이콘", "문구"],
+  "열쇠": ["열쇠", "열쇠일러스트", "열쇠 클립아트", "귀여운 열쇠", "열쇠svg", "열쇠아이콘", "키", "생활용품"],
+  "의자": ["의자", "의자일러스트", "의자 클립아트", "귀여운 의자", "의자svg", "의자아이콘", "가구", "생활용품"],
+  "전구": ["전구", "전구일러스트", "전구 클립아트", "귀여운 전구", "전구svg", "전구아이콘", "조명", "전자기기"],
+  "편지봉투": ["편지봉투", "편지봉투일러스트", "편지봉투 클립아트", "귀여운 편지봉투", "편지봉투svg", "편지봉투아이콘", "우편", "문구"],
+  "물병": ["물병", "물병일러스트", "물병 클립아트", "귀여운 물병", "물병svg", "물병아이콘", "텀블러", "생활용품"],
+  "우표": ["우표", "우표일러스트", "우표 클립아트", "귀여운 우표", "우표svg", "우표아이콘", "우편", "문구"],
+  "계산기": ["계산기", "계산기일러스트", "계산기 클립아트", "귀여운 계산기", "계산기svg", "계산기아이콘", "전자기기"],
+  "마이크": ["마이크", "마이크일러스트", "마이크 클립아트", "귀여운 마이크", "마이크svg", "마이크아이콘", "전자기기"],
+
+  // 이벤트/기념일/취미·스포츠
+  "생일": ["생일", "생일일러스트", "생일 클립아트", "귀여운 생일", "생일svg", "생일아이콘", "생일파티", "이벤트"],
+  "결혼식": ["결혼식", "결혼식일러스트", "결혼식 클립아트", "귀여운 결혼식", "결혼식svg", "결혼식아이콘", "웨딩", "이벤트"],
+  "졸업식": ["졸업식", "졸업식일러스트", "졸업 클립아트", "귀여운 졸업식", "졸업식svg", "졸업아이콘", "졸업장", "이벤트"],
+  "입학식": ["입학식", "입학식일러스트", "입학 클립아트", "귀여운 입학식", "입학식svg", "입학아이콘", "새학기", "이벤트"],
+  "설날": ["설날", "설날일러스트", "설날 클립아트", "귀여운 설날", "설날svg", "설날아이콘", "한복", "명절"],
+  "추석": ["추석", "추석일러스트", "추석 클립아트", "귀여운 추석", "추석svg", "추석아이콘", "한가위", "명절"],
+  "발렌타인데이": ["발렌타인데이", "발렌타인일러스트", "발렌타인 클립아트", "귀여운 발렌타인", "발렌타인svg", "발렌타인아이콘", "초콜릿", "기념일"],
+  "할로윈": ["할로윈", "할로윈일러스트", "할로윈 클립아트", "귀여운 할로윈", "할로윈svg", "할로윈아이콘", "호박", "기념일"],
+  "어버이날": ["어버이날", "어버이날일러스트", "어버이날 클립아트", "귀여운 어버이날", "어버이날svg", "어버이날아이콘", "카네이션", "기념일"],
+  "돌잔치": ["돌잔치", "돌잔치일러스트", "돌잔치 클립아트", "귀여운 돌잔치", "돌잔치svg", "돌잔치아이콘", "첫돌", "이벤트"],
+  "축구": ["축구", "축구일러스트", "축구 클립아트", "귀여운 축구", "축구svg", "축구아이콘", "축구공", "스포츠"],
+  "농구": ["농구", "농구일러스트", "농구 클립아트", "귀여운 농구", "농구svg", "농구아이콘", "농구공", "스포츠"],
+  "야구": ["야구", "야구일러스트", "야구 클립아트", "귀여운 야구", "야구svg", "야구아이콘", "야구공", "스포츠"],
+  "골프": ["골프", "골프일러스트", "골프 클립아트", "귀여운 골프", "골프svg", "골프아이콘", "골프공", "스포츠"],
+  "수영": ["수영", "수영일러스트", "수영 클립아트", "귀여운 수영", "수영svg", "수영아이콘", "수영장", "스포츠"],
+  "요가": ["요가", "요가일러스트", "요가 클립아트", "귀여운 요가", "요가svg", "요가아이콘", "명상", "운동"],
+  "러닝": ["러닝", "러닝일러스트", "러닝 클립아트", "귀여운 러닝", "러닝svg", "러닝아이콘", "달리기", "운동"],
+  "캠핑": ["캠핑", "캠핑일러스트", "캠핑 클립아트", "귀여운 캠핑", "캠핑svg", "캠핑아이콘", "텐트", "취미"],
+  "낚시": ["낚시", "낚시일러스트", "낚시 클립아트", "귀여운 낚시", "낚시svg", "낚시아이콘", "낚싯대", "취미"],
+  "독서": ["독서", "독서일러스트", "독서 클립아트", "귀여운 독서", "독서svg", "독서아이콘", "책", "취미"],
+
+  // 자연/음식/직업/기타 인기 검색어
+  "산": ["산", "산 일러스트", "산 클립아트", "귀여운 산", "산svg", "산아이콘", "자연"],
+  "강": ["강", "강 일러스트", "강 클립아트", "귀여운 강", "강svg", "강아이콘", "자연"],
+  "구름": ["구름", "구름일러스트", "구름 클립아트", "귀여운 구름", "구름svg", "구름아이콘", "하늘", "날씨"],
+  "태양": ["태양", "해", "태양일러스트", "태양 클립아트", "귀여운 태양", "태양svg", "태양아이콘", "날씨"],
+  "별자리": ["별자리", "별자리일러스트", "별자리 클립아트", "귀여운 별자리", "별자리svg", "별자리아이콘", "밤하늘"],
+  "숲": ["숲", "숲일러스트", "숲 클립아트", "귀여운 숲", "숲svg", "숲아이콘", "자연"],
+  "나비": ["나비", "나비일러스트", "나비 클립아트", "귀여운 나비", "나비svg", "나비아이콘", "곤충", "자연"],
+  "벌": ["벌", "꿀벌", "벌일러스트", "벌 클립아트", "귀여운 벌", "벌svg", "벌아이콘", "곤충"],
+  "라면": ["라면", "라면일러스트", "라면 클립아트", "귀여운 라면", "라면svg", "라면아이콘", "음식"],
+  "초밥": ["초밥", "스시", "초밥일러스트", "초밥 클립아트", "귀여운 초밥", "초밥svg", "초밥아이콘", "음식"],
+  "떡볶이": ["떡볶이", "떡볶이일러스트", "떡볶이 클립아트", "귀여운 떡볶이", "떡볶이svg", "떡볶이아이콘", "분식", "음식"],
+  "김밥": ["김밥", "김밥일러스트", "김밥 클립아트", "귀여운 김밥", "김밥svg", "김밥아이콘", "분식", "음식"],
+  "치킨": ["치킨", "치킨일러스트", "치킨 클립아트", "귀여운 치킨", "치킨svg", "치킨아이콘", "음식"],
+  "빵": ["빵", "베이커리", "빵일러스트", "빵 클립아트", "귀여운 빵", "빵svg", "빵아이콘", "음식"],
+  "음료": ["음료", "음료수", "음료일러스트", "음료 클립아트", "귀여운 음료", "음료svg", "음료아이콘", "음식"],
+  "소방관": ["소방관", "소방관일러스트", "소방관 클립아트", "귀여운 소방관", "소방관svg", "소방관아이콘", "직업"],
+  "경찰관": ["경찰관", "경찰", "경찰관일러스트", "경찰관 클립아트", "귀여운 경찰관", "경찰관svg", "경찰관아이콘", "직업"],
+  "요리사": ["요리사", "셰프", "요리사일러스트", "요리사 클립아트", "귀여운 요리사", "요리사svg", "요리사아이콘", "직업"],
+  "간호사": ["간호사", "간호사일러스트", "간호사 클립아트", "귀여운 간호사", "간호사svg", "간호사아이콘", "직업"],
+  "운동선수": ["운동선수", "스포츠선수", "운동선수일러스트", "운동선수 클립아트", "귀여운 운동선수", "운동선수svg", "운동선수아이콘", "직업"],
+
+  // 과학
+  "현미경": ["현미경", "현미경일러스트", "현미경 클립아트", "귀여운 현미경", "현미경svg", "현미경아이콘", "과학", "실험"],
+  "플라스크": ["플라스크", "비커", "플라스크일러스트", "플라스크 클립아트", "귀여운 플라스크", "플라스크svg", "플라스크아이콘", "과학", "실험"],
+  "시험관": ["시험관", "시험관일러스트", "시험관 클립아트", "귀여운 시험관", "시험관svg", "시험관아이콘", "과학", "실험"],
+  "dna": ["DNA", "디엔에이", "DNA일러스트", "DNA 클립아트", "귀여운 DNA", "DNAsvg", "DNA아이콘", "유전자", "과학"],
+  "원자": ["원자", "원자모형", "원자일러스트", "원자 클립아트", "귀여운 원자", "원자svg", "원자아이콘", "과학", "물리"],
+  "로봇": ["로봇", "로봇일러스트", "로봇 클립아트", "귀여운 로봇", "로봇svg", "로봇아이콘", "과학", "인공지능"],
+  "우주비행사": ["우주비행사", "우주인", "우주비행사일러스트", "우주비행사 클립아트", "귀여운 우주비행사", "우주비행사svg", "우주비행사아이콘", "우주", "과학"],
+  "지구본": ["지구본", "지구", "지구본일러스트", "지구본 클립아트", "귀여운 지구본", "지구본svg", "지구본아이콘", "과학", "지리"],
+  "망원경": ["망원경", "망원경일러스트", "망원경 클립아트", "귀여운 망원경", "망원경svg", "망원경아이콘", "천체", "과학"],
+  "공룡": ["공룡", "공룡일러스트", "공룡 클립아트", "귀여운 공룡", "공룡svg", "공룡아이콘", "화석", "과학"],
+  "과학자": ["과학자", "연구원", "과학자일러스트", "과학자 클립아트", "귀여운 과학자", "과학자svg", "과학자아이콘", "직업", "과학"],
+  "전자기판": ["전자기판", "회로기판", "전자기판일러스트", "전자기판 클립아트", "전자기판svg", "전자기판아이콘", "과학", "전자기기"]
+};
+
+// 요소 이름이 사전 키와 정확히 일치하지 않을 때 매핑할 동의어 테이블.
+const SYNONYMS = {
+  "바닷물": "바다",
+  "씨스타": "불가사리",
+  "게": "꽃게",
+  "강아지": "강아지",
+  "멍멍이": "강아지",
+  "댕댕이": "강아지",
+  "냥이": "고양이",
+  "고양이": "고양이",
+  "곰돌이": "곰",
+  "테디베어": "곰",
+  "호랭이": "호랑이",
+  "펭귄이": "펭귄",
+  "벚꽃": "봄",
+  "단풍잎": "가을",
+  "눈꽃": "겨울",
+  "커피잔": "커피",
+  "아메리카노": "커피",
+  "생일케이크": "케이크",
+  "장미": "꽃",
+  "튤립": "꽃",
+  "산타": "산타클로스",
+  "트리": "크리스마스트리",
+  "회사원": "직장인",
+  "교사": "선생님",
+  "연인": "커플",
+  "노인": "할머니",
+  "할아버지": "할머니",
+  "차": "자동차",
+  "열차": "기차",
+  "전철": "지하철",
+  "선박": "배",
+  "요트": "배",
+  "스쿠터": "오토바이",
+  "우주선": "로켓",
+
+  "핸드폰": "스마트폰",
+  "휴대폰": "스마트폰",
+  "랩탑": "노트북",
+  "백팩": "가방",
+  "손목시계": "시계",
+  "이어폰": "헤드폰",
+  "필기구": "연필",
+  "열쇠고리": "열쇠",
+  "텀블러": "물병",
+  "물통": "물병",
+  "봉투": "편지봉투",
+
+  "웨딩": "결혼식",
+  "결혼": "결혼식",
+  "돌잡이": "돌잔치",
+  "첫생일": "돌잔치",
+  "조깅": "러닝",
+  "마라톤": "러닝",
+  "낚시터": "낚시",
+  "책읽기": "독서",
+  "핼로윈": "할로윈",
+  "밸런타인데이": "발렌타인데이",
+  "구정": "설날",
+  "한가위": "추석",
+  "새내기": "입학식",
+
+  "해": "태양",
+  "스시": "초밥",
+  "셰프": "요리사",
+  "꿀벌": "벌",
+  "베이커리": "빵",
+  "음료수": "음료",
+  "경찰": "경찰관",
+  "스포츠선수": "운동선수",
+  "밤하늘": "별자리",
+
+  "비커": "플라스크",
+  "디엔에이": "dna",
+  "유전자": "dna",
+  "원자모형": "원자",
+  "우주인": "우주비행사",
+  "지구": "지구본",
+  "연구원": "과학자",
+  "회로기판": "전자기판"
+};
+
+// ===== matcher.js =====
+// 요소 이름 + (선택) 스타일 분석 결과를 CATEGORY_KEYWORDS와 매칭해 추천 태그를 산출한다.
+// 완전 로컬 문자열 매칭. 외부 호출 없음.
+
+function normalizeName(name) {
+  return (name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\-.]/g, "");
+}
+
+function resolveCategory(rawName) {
+  const normalized = normalizeName(rawName);
+  if (!normalized) return null;
+
+  for (const synonym in SYNONYMS) {
+    if (normalizeName(synonym) === normalized) {
+      return SYNONYMS[synonym];
+    }
+  }
+
+  for (const category in CATEGORY_KEYWORDS) {
+    if (normalizeName(category) === normalized) {
+      return category;
+    }
+  }
+
+  // 부분 일치 (예: "여름바다svg" -> "바다")
+  for (const category in CATEGORY_KEYWORDS) {
+    if (normalized.includes(normalizeName(category))) {
+      return category;
+    }
+  }
+
+  return null;
+}
+
+// styleTags: analyzeImageStyle()이 산출한 ["귀여운", ...] 같은 부가 태그 배열 (선택)
+function recommendTags(rawName, styleTags) {
+  const category = resolveCategory(rawName);
+  if (!category) {
+    return { category: null, keywords: [], confidence: 0 };
+  }
+
+  const base = CATEGORY_KEYWORDS[category] || [];
+  const extra = (styleTags || []).filter((t) => !base.includes(t));
+  const keywords = [...base, ...extra];
+
+  // 이름이 정확히 일치하면 confidence를 높게, 부분 일치면 낮게 부여
+  const exactMatch = normalizeName(category) === normalizeName(rawName);
+  const confidence = exactMatch ? 0.95 : 0.7;
+
+  return { category, keywords, confidence };
+}
+
+// ===== styleAnalyzer.js =====
+// 1단계 휴리스틱 이미지 스타일 분석: 색상 수 / 채도 / 윤곽선 복잡도로
+// "귀여운·심플" vs "사실적·디테일" 스타일을 규칙 기반으로 추정한다.
+// ML 모델 없이 Canvas API만 사용, 완전 로컬 처리.
+//
+// 주의: 이미지가 다른 오리진에서 로드되고 CORS 헤더가 없으면 캔버스가
+// "오염"되어 getImageData가 실패한다. 이 경우 분석을 건너뛰고 null을 반환한다.
+
+const STYLE_SAMPLE_SIZE = 32; // 성능을 위해 32x32로 축소해서 분석
+
+function analyzeImageStyle(imgEl) {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = STYLE_SAMPLE_SIZE;
+    canvas.height = STYLE_SAMPLE_SIZE;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(imgEl, 0, 0, STYLE_SAMPLE_SIZE, STYLE_SAMPLE_SIZE);
+
+    const { data } = ctx.getImageData(0, 0, STYLE_SAMPLE_SIZE, STYLE_SAMPLE_SIZE);
+    return computeStyleFromPixels(data);
+  } catch (err) {
+    // CORS로 캔버스가 오염되었거나 이미지가 아직 로드되지 않은 경우
+    return null;
+  }
+}
+
+function computeStyleFromPixels(data) {
+  const colorBuckets = new Set();
+  let saturationSum = 0;
+  let edgeSum = 0;
+  let prevLuma = null;
+  const pixelCount = data.length / 4;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    // 색상을 16단계로 양자화해서 "실질적으로 다른 색"의 개수를 센다
+    const bucket = [r, g, b].map((c) => Math.floor(c / 16)).join(",");
+    colorBuckets.add(bucket);
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const saturation = max === 0 ? 0 : (max - min) / max;
+    saturationSum += saturation;
+
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (prevLuma !== null) {
+      edgeSum += Math.abs(luma - prevLuma);
+    }
+    prevLuma = luma;
+  }
+
+  const uniqueColors = colorBuckets.size;
+  const avgSaturation = saturationSum / pixelCount;
+  const avgEdge = edgeSum / pixelCount;
+
+  // 규칙: 색이 적고(단순한 팔레트) 윤곽선 변화가 완만하면 "귀여운/심플" 스타일로 판단
+  const isSimpleStyle = uniqueColors < 40 && avgEdge < 25;
+
+  return {
+    uniqueColors,
+    avgSaturation: Number(avgSaturation.toFixed(2)),
+    avgEdge: Number(avgEdge.toFixed(2)),
+    styleTags: isSimpleStyle ? ["귀여운", "심플한"] : ["사실적", "디테일한"],
+    styleConfidence: isSimpleStyle
+      ? Math.max(0.5, 1 - uniqueColors / 40)
+      : Math.min(0.9, uniqueColors / 80)
+  };
+}
+
+// ===== app.js =====
+const STORAGE_KEY = "mc_tag_items";
+const selectedTags = new Set();
+let pendingImage = null; // { dataUrl, imgEl }
+
+const el = (id) => document.getElementById(id);
+
+function loadItems() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveItems(items) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+// 원본 사진(수 MB)을 그대로 localStorage에 저장하면 iOS 등에서 용량 제한(5~10MB)을
+// 금방 넘겨 저장이 조용히 실패한다. 그래서 저장/미리보기용으로는 작은 JPEG 썸네일만 만든다.
+function createThumbnail(imgEl, maxSize, quality) {
+  const scale = Math.min(1, maxSize / Math.max(imgEl.naturalWidth || imgEl.width, imgEl.naturalHeight || imgEl.height));
+  const w = Math.max(1, Math.round((imgEl.naturalWidth || imgEl.width) * scale));
+  const h = Math.max(1, Math.round((imgEl.naturalHeight || imgEl.height) * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(imgEl, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve({ imgEl: img });
+      img.onerror = () => reject(new Error("이미지를 열 수 없습니다. 이 사진 형식은 지원되지 않을 수 있어요."));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("파일을 읽는 중 오류가 발생했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+el("imageInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    pendingImage = null;
+    el("imagePreview").hidden = true;
+    return;
+  }
+  try {
+    const { imgEl } = await loadImageFromFile(file);
+    const previewDataUrl = createThumbnail(imgEl, 160, 0.7);
+    pendingImage = { imgEl, previewDataUrl };
+    el("previewImg").src = previewDataUrl;
+    el("previewName").textContent = file.name;
+    el("imagePreview").hidden = false;
+  } catch (err) {
+    pendingImage = null;
+    el("imagePreview").hidden = true;
+    el("imageInput").value = "";
+    alert(err.message || "사진을 불러오지 못했습니다.");
+  }
+});
+
+el("addBtn").addEventListener("click", async () => {
+  const name = el("nameInput").value.trim();
+  if (!name) {
+    el("nameInput").focus();
+    return;
+  }
+
+  try {
+    const style = pendingImage ? analyzeImageStyle(pendingImage.imgEl) : null;
+    const { category, keywords, confidence } = recommendTags(name, style ? style.styleTags : []);
+
+    const items = loadItems();
+    items.unshift({
+      id: Date.now(),
+      name,
+      thumbnail: pendingImage ? pendingImage.previewDataUrl : "",
+      category,
+      keywords,
+      confidence: keywords.length ? confidence : 0
+    });
+    saveItems(items);
+  } catch (err) {
+    alert("태그를 만들지 못했습니다: " + (err.message || err));
+    return;
+  }
+
+  el("nameInput").value = "";
+  el("imageInput").value = "";
+  pendingImage = null;
+  el("imagePreview").hidden = true;
+
+  render();
+});
+
+function removeItem(id) {
+  const items = loadItems().filter((i) => i.id !== id);
+  saveItems(items);
+  render();
+}
+
+function toggleTag(keyword, chipEl) {
+  if (selectedTags.has(keyword)) {
+    selectedTags.delete(keyword);
+    chipEl.classList.remove("selected");
+  } else {
+    selectedTags.add(keyword);
+    chipEl.classList.add("selected");
+  }
+  el("selectedList").textContent = selectedTags.size
+    ? Array.from(selectedTags).join(", ")
+    : "아래 태그를 눌러서 담으면 여기에 콤마로 구분되어 표시돼요.";
+}
+
+function render() {
+  const items = loadItems();
+
+  el("statTotal").textContent = items.length;
+  el("statWithTags").textContent = items.filter((i) => i.keywords.length > 0).length;
+  el("statMissing").textContent = items.filter((i) => i.keywords.length === 0).length;
+  el("statAvgConfidence").textContent = items.length
+    ? Number((items.reduce((s, i) => s + i.confidence, 0) / items.length).toFixed(2))
+    : 0;
+
+  const banner = el("statusBanner");
+  if (items.length) {
+    banner.hidden = false;
+    banner.textContent = `${items.length}개 항목의 태그를 만들었어요.`;
+  } else {
+    banner.hidden = true;
+  }
+
+  const list = el("resultsList");
+  list.innerHTML = "";
+  items.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "result-card";
+
+    const thumbRow = document.createElement("div");
+    thumbRow.className = "thumb-row";
+    if (item.thumbnail) {
+      const img = document.createElement("img");
+      img.src = item.thumbnail;
+      thumbRow.appendChild(img);
+    } else {
+      const noImg = document.createElement("div");
+      noImg.className = "no-img";
+      thumbRow.appendChild(noImg);
+    }
+    card.appendChild(thumbRow);
+
+    const body = document.createElement("div");
+    body.className = "result-body";
+
+    const nameRow = document.createElement("div");
+    nameRow.className = "result-name";
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = item.name;
+    const removeSpan = document.createElement("span");
+    removeSpan.className = "remove";
+    removeSpan.textContent = "삭제";
+    removeSpan.addEventListener("click", () => removeItem(item.id));
+    nameRow.appendChild(nameSpan);
+    nameRow.appendChild(removeSpan);
+    body.appendChild(nameRow);
+
+    const tagsRow = document.createElement("div");
+    tagsRow.className = "result-tags";
+    if (item.keywords.length === 0) {
+      const missing = document.createElement("span");
+      missing.style.fontSize = "12px";
+      missing.style.color = "#9ca3af";
+      missing.textContent = "어울리는 태그를 찾지 못했어요 (사전에 카테고리 추가 필요)";
+      tagsRow.appendChild(missing);
+    } else {
+      item.keywords.forEach((kw) => {
+        const chip = document.createElement("span");
+        chip.className = "tag-chip";
+        chip.textContent = kw;
+        if (selectedTags.has(kw)) chip.classList.add("selected");
+        chip.addEventListener("click", () => toggleTag(kw, chip));
+        tagsRow.appendChild(chip);
+      });
+    }
+    body.appendChild(tagsRow);
+
+    card.appendChild(body);
+    list.appendChild(card);
+  });
+}
+
+el("copySelected").addEventListener("click", async () => {
+  const text = Array.from(selectedTags).join(", ");
+  await navigator.clipboard.writeText(text);
+});
+
+el("clearSelected").addEventListener("click", () => {
+  selectedTags.clear();
+  el("selectedList").textContent = "아래 태그를 눌러서 담으면 여기에 콤마로 구분되어 표시돼요.";
+  document.querySelectorAll(".tag-chip.selected").forEach((c) => c.classList.remove("selected"));
+});
+
+el("clearAll").addEventListener("click", () => {
+  localStorage.removeItem(STORAGE_KEY);
+  selectedTags.clear();
+  el("selectedList").textContent = "아래 태그를 눌러서 담으면 여기에 콤마로 구분되어 표시돼요.";
+  render();
+});
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+el("exportCsv").addEventListener("click", () => {
+  const items = loadItems();
+  const rows = ["name,category,confidence,keywords"];
+  items.forEach((i) => {
+    rows.push(`"${i.name}","${i.category ?? ""}",${i.confidence},"${i.keywords.join("|")}"`);
+  });
+  downloadFile("mc_tags.csv", rows.join("\n"), "text/csv");
+});
+
+el("exportJson").addEventListener("click", () => {
+  downloadFile("mc_tags.json", JSON.stringify(loadItems(), null, 2), "application/json");
+});
+
+render();
+  </script>
+</body>
+</html>
